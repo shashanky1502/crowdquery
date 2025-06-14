@@ -1,5 +1,6 @@
 package com.crowdquery.crowdquery.security;
 
+import com.crowdquery.crowdquery.enums.Role;
 import com.crowdquery.crowdquery.model.User;
 import com.crowdquery.crowdquery.repository.UserRepository;
 import jakarta.servlet.ServletException;
@@ -13,6 +14,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -23,13 +25,24 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+            HttpServletResponse response,
+            Authentication authentication) throws IOException, ServletException {
+
         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
         String googleId = oauthUser.getAttribute("sub");
 
+        String email = oauthUser.getAttribute("email");
+
         User user = userRepository.findByGoogleId(googleId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .googleId(googleId)
+                            .email(email)
+                            .role(Role.USER)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    return userRepository.saveAndFlush(newUser);
+                });
 
         String accessToken = jwtTokenProvider.generateAccessToken(user);
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);
@@ -47,7 +60,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         response.addCookie(accessTokenCookie);
         response.addCookie(refreshTokenCookie);
 
-        response.sendRedirect("http://localhost:3000/dashboard");
+        response.sendRedirect("http://localhost:8080/dashboard.html");
     }
 }
-
