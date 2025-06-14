@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome to your Dashboard, <span id="userName">User</span>!</h2>
+        
+        <div class="user-info">
+            <h3>Your Details:</h3>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+        </div>
+
+        <div class="logout">
+            <button onclick="logout()" class="btn btn-danger">Logout</button>
+        </div>
+    </div>
+    <script>
+        // Example: Fetch user info from backend and display
+        fetch('/auth/me')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('userName').textContent = data.name || 'User';
+                document.getElementById('userEmail').textContent = data.email || '';
+            });
+
+        function logout() {
+            fetch('/auth/logout', { method: 'POST', credentials: 'include' })
+                .then(() => window.location.href = '/login.html');
+        }
+    </script>
+</body>
+</html>

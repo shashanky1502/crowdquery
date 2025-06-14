@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Login</h2>
+
+        <!-- Show error message if login fails -->
+        <div id="error-message" style="color: red; display: none;">
+            Invalid email or password. Please try again.
+        </div>
+
+        <!-- Google OAuth2 login -->
+        <div>
+            <h3>Or login with Google:</h3>
+            <a href="/oauth2/authorization/google" class="btn btn-primary">Login with Google</a>
+        </div>
+
+        <hr>
+
+        <div>
+            <p>Don't have an account? <a href="/register.html">Register here</a></p>
+        </div>
+    </div>
+    <script>
+        // Show error message if ?error is in the URL
+        if (window.location.search.includes('error')) {
+            document.getElementById('error-message').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

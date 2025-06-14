@@ -1,0 +1,34 @@
+spring:
+    application:
+        name: Crowdquery
+
+    datasource:
+        url: jdbc:postgresql://localhost:5432/crowdquery
+        username: postgres
+        password: 1234
+
+    jpa:
+        hibernate:
+            ddl-auto: update
+        show-sql: true
+
+    security:
+        oauth2:
+            client:
+                registration:
+                    google:
+                        client-id: 1097598755609-v2k22ljflmo8rn7i0l53j1hobn369rpl.apps.googleusercontent.com
+                        client-secret: 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
+                        scope:
+                            - openid
+                            - profile
+                            - email
+
+server:
+    port: 8080
+
+app:
+    jwt:
+        secret: VokNYN+HgIAVXJf7JhJX6exId3+6pIvLhG25bsOXHm+WWFRYb6eM7DbrcY8PQ23h2dmYKkqli+G9zrKYnOuunQ==
+        access-expiration: 3600000         # 1 hour in ms
+        refresh-expiration: 604800000      # 7 days in ms
