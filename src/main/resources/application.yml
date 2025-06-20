@@ -30,5 +30,5 @@ server:
 app:
     jwt:
         secret: VokNYN+HgIAVXJf7JhJX6exId3+6pIvLhG25bsOXHm+WWFRYb6eM7DbrcY8PQ23h2dmYKkqli+G9zrKYnOuunQ==
-        access-expiration: 3600000         # 1 hour in ms
+        access-expiration: 3600000        # 1 hour in ms
         refresh-expiration: 604800000      # 7 days in ms

@@ -28,22 +28,16 @@ public class User {
     @Column(unique = true)
     private String anonymousUsername;
 
+    private String avatarUrl;
+
     private LocalDateTime lastUsernameChangeAt;
 
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    private LocalDateTime createdAt;
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
 
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    public void prePersist() {
-        createdAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

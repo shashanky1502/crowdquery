@@ -10,6 +10,9 @@
 <body>
     <div class="container">
         <h2>Welcome to your Dashboard, <span id="userName">User</span>!</h2>
+
+        <img src="" alt="User Avatar" id="userAvatar" class="avatar" />
+
         
         <div class="user-info">
             <h3>Your Details:</h3>
@@ -25,8 +28,10 @@
         fetch('/auth/me')
             .then(res => res.json())
             .then(data => {
-                document.getElementById('userName').textContent = data.name || 'User';
+                document.getElementById('userName').textContent = data.anonymousUsername || 'User';
                 document.getElementById('userEmail').textContent = data.email || '';
+                document.getElementById('userAvatar').src = data.avatarUrl ;
+
             });
 
         function logout() {

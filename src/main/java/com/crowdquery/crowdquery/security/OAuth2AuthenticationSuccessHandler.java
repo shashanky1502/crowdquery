@@ -3,6 +3,8 @@ package com.crowdquery.crowdquery.security;
 import com.crowdquery.crowdquery.enums.Role;
 import com.crowdquery.crowdquery.model.User;
 import com.crowdquery.crowdquery.repository.UserRepository;
+import com.crowdquery.crowdquery.service.RandomUserService;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,7 +16,8 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +25,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private final UserRepository userRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RandomUserService randomUserService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -35,12 +39,29 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         User user = userRepository.findByGoogleId(googleId)
                 .orElseGet(() -> {
+                    Map<String, String> userInfo = randomUserService.fetchUsernameAndAvatar()
+                            .orElseGet(() -> {
+                                String defaultUsername = "anon" + UUID.randomUUID().toString().substring(0, 8);
+                                String defaultAvatar = "https://www.redditstatic.com/avatars/defaults/v2/avatar_default_5.png";
+                                return Map.of("username", defaultUsername, "avatarUrl", defaultAvatar);
+                            });
+
+                    String baseUsername = userInfo.get("username");
+                    String avatarUrl = userInfo.get("avatarUrl");
+                    String finalUsername = baseUsername;
+                    int counter = 1;
+                    while (userRepository.existsByAnonymousUsername(finalUsername)) {
+                        finalUsername = baseUsername + counter++;
+                    }
+
                     User newUser = User.builder()
                             .googleId(googleId)
                             .email(email)
+                            .anonymousUsername(finalUsername)
+                            .avatarUrl(avatarUrl)
                             .role(Role.USER)
-                            .createdAt(LocalDateTime.now())
                             .build();
+
                     return userRepository.saveAndFlush(newUser);
                 });
 
@@ -56,6 +77,10 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         refreshTokenCookie.setHttpOnly(true);
         refreshTokenCookie.setPath("/");
         refreshTokenCookie.setMaxAge((int) (jwtTokenProvider.getRefreshTokenExpirationMs() / 1000));
+        refreshTokenCookie.setAttribute("SameSite", "Strict");
+        // refreshTokenCookie.setSecure(true); // Ensure this is set to true in production
+        // refreshTokenCookie.setDomain("localhost"); // Set your domain here
+
 
         response.addCookie(accessTokenCookie);
         response.addCookie(refreshTokenCookie);
