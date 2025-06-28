@@ -152,29 +152,33 @@ public class ChannelServiceImpl implements ChannelService {
         }
 
         @Override
-        @PreAuthorize("@channelServiceImpl.isChannelMember(#channelId)")
-        public boolean isChannelMember(UUID channelId) {
-                UUID currentUserId = SecurityUtil.getCurrentUserId()
-                                .orElse(null);
-
+        public boolean isChannelMemberByCode(String channelCode) {
+                UUID currentUserId = SecurityUtil.getCurrentUserId().orElse(null);
                 if (currentUserId == null) {
                         return false;
                 }
 
-                return isChannelMember(channelId, currentUserId);
+                Channel channel = channelRepository.findByChannelCode(channelCode).orElse(null);
+                if (channel == null) {
+                        return false;
+                }
+
+                return channelMembershipRepository.existsByChannelIdAndUserId(channel.getId(), currentUserId);
         }
 
         @Override
-        @PreAuthorize("@channelServiceImpl.isChannelModerator(#channelId)")
-        public boolean isChannelModerator(UUID channelId) {
-                UUID currentUserId = SecurityUtil.getCurrentUserId()
-                                .orElse(null);
-
+        public boolean isChannelModeratorByCode(String channelCode) {
+                UUID currentUserId = SecurityUtil.getCurrentUserId().orElse(null);
                 if (currentUserId == null) {
                         return false;
                 }
 
-                return channelMembershipRepository.findByChannelIdAndUserId(channelId, currentUserId)
+                Channel channel = channelRepository.findByChannelCode(channelCode).orElse(null);
+                if (channel == null) {
+                        return false;
+                }
+
+                return channelMembershipRepository.findByChannelIdAndUserId(channel.getId(), currentUserId)
                                 .map(membership -> membership.getRole() == ChannelRole.MODERATOR)
                                 .orElse(false);
         }

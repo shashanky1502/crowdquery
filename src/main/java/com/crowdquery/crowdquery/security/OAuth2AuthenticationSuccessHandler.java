@@ -78,6 +78,7 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         refreshTokenCookie.setPath("/");
         refreshTokenCookie.setMaxAge((int) (jwtTokenProvider.getRefreshTokenExpirationMs() / 1000));
         refreshTokenCookie.setAttribute("SameSite", "Strict");
+        // @Refactor: Uncomment and set secure and domain in production
         // refreshTokenCookie.setSecure(true); // Ensure this is set to true in production
         // refreshTokenCookie.setDomain("localhost"); // Set your domain here
 

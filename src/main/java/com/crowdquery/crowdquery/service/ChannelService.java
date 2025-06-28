@@ -20,7 +20,7 @@ public interface ChannelService {
 
     ChannelResponseDto getChannelByCode(String channelCode);
 
-    boolean isChannelMember(UUID channelId);
+    boolean isChannelMemberByCode(String channelCode);
 
-    boolean isChannelModerator(UUID channelId);
+    boolean isChannelModeratorByCode(String channelCode);
 }
