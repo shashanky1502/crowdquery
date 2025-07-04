@@ -1,4 +1,5 @@
 package com.crowdquery.crowdquery.model;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -8,13 +9,19 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.crowdquery.crowdquery.enums.CommentStatus;
+
 @Entity
 @Table(name = "comments")
-@Getter @Setter @Builder
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Comment {
 
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private UUID id;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -24,18 +31,38 @@ public class Comment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
-    private Comment parentComment;    // Nullable for top-level comments
+    private Comment parentComment; // Nullable for top-level comments
 
     @ManyToOne(fetch = FetchType.LAZY)
     private User author;
-    
+
     @Builder.Default
-    private boolean isDeleted = false;
+    @Enumerated(EnumType.STRING)
+    private CommentStatus status = CommentStatus.ACTIVE;
+
+    @Builder.Default
+    @Column(name = "is_edited", nullable = false)
+    private boolean isEdited = false;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public int getCommentLevel() {
+        int level = 0;
+        Comment current = this;
+        while (current.getParentComment() != null) {
+            level++;
+            current = current.getParentComment();
+        }
+        return level;
+    }
+
+    // Keep this for convenience
+    public boolean isTopLevel() {
+        return parentComment == null;
+    }
 
 }

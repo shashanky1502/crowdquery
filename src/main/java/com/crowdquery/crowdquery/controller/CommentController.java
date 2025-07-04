@@ -2,6 +2,7 @@ package com.crowdquery.crowdquery.controller;
 
 import com.crowdquery.crowdquery.dto.CommentDto.CommentRequestDto;
 import com.crowdquery.crowdquery.dto.CommentDto.CommentResponseDto;
+import com.crowdquery.crowdquery.dto.CommentDto.CommentUpdateDto;
 import com.crowdquery.crowdquery.dto.PaginatedResponseDto;
 import com.crowdquery.crowdquery.service.CommentService;
 import lombok.RequiredArgsConstructor;
@@ -23,17 +24,27 @@ public class CommentController {
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<CommentResponseDto>> getComments(
             @RequestParam String questionId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
-        return ResponseEntity.ok(commentService.getCommentsByQuestion(questionId, page, size, sortBy, sortDir));
+        return ResponseEntity.ok(commentService.getCommentsByQuestion(questionId, limit, offset, sortBy, sortDir));
+    }
+
+    @GetMapping("/replies")
+    public ResponseEntity<PaginatedResponseDto<CommentResponseDto>> getReplies(
+            @RequestParam String commentId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        return ResponseEntity.ok(commentService.getRepliesByComment(commentId, limit, offset, sortBy, sortDir));
     }
 
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponseDto> updateComment(
             @PathVariable String commentId,
-            @RequestBody CommentRequestDto request) {
+            @RequestBody CommentUpdateDto request) {
         return ResponseEntity.ok(commentService.updateComment(commentId, request));
     }
 

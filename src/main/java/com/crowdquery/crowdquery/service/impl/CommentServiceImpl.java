@@ -2,10 +2,13 @@ package com.crowdquery.crowdquery.service.impl;
 
 import com.crowdquery.crowdquery.dto.CommentDto.CommentRequestDto;
 import com.crowdquery.crowdquery.dto.CommentDto.CommentResponseDto;
+import com.crowdquery.crowdquery.dto.CommentDto.CommentUpdateDto;
 import com.crowdquery.crowdquery.dto.PaginatedResponseDto;
+import com.crowdquery.crowdquery.enums.CommentStatus;
 import com.crowdquery.crowdquery.model.*;
 import com.crowdquery.crowdquery.repository.*;
 import com.crowdquery.crowdquery.service.CommentService;
+import com.crowdquery.crowdquery.service.ReactionService;
 import com.crowdquery.crowdquery.util.IdEncoder;
 import com.crowdquery.crowdquery.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepository userRepository;
     private final QuestionRepository questionRepository;
     private final ChannelMembershipRepository channelMembershipRepository;
+    private final ReactionService reactionService;
     private final IdEncoder idEncoder;
 
     @Override
@@ -52,7 +56,8 @@ public class CommentServiceImpl implements CommentService {
         Comment.CommentBuilder commentBuilder = Comment.builder()
                 .text(request.getText())
                 .parentContentId(parentQuestionId)
-                .author(author);
+                .author(author)
+                .status(CommentStatus.ACTIVE);
 
         // Handle nested comments
         if (request.getParentCommentId() != null) {
@@ -69,15 +74,19 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public PaginatedResponseDto<CommentResponseDto> getCommentsByQuestion(
-            String questionId, int page, int size, String sortBy, String sortDir) {
+            String questionId, int limit, int offset, String sortBy, String sortDir) {
 
         UUID parentQuestionId = idEncoder.decode(questionId);
 
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
         Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
-        Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Comment> commentsPage = commentRepository.findByParentContentIdAndIsDeletedFalse(
+        // Convert offset and limit to page and size for Spring Data
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        // Get only TOP-LEVEL comments (no parent comment)
+        Page<Comment> commentsPage = commentRepository.findByParentContentIdAndParentCommentIsNull(
                 parentQuestionId, pageable);
 
         return new PaginatedResponseDto<>(
@@ -85,20 +94,50 @@ public class CommentServiceImpl implements CommentService {
                         .map(this::mapToResponseDto)
                         .toList(),
                 new PaginatedResponseDto.Pagination(
-                        size,
-                        page * size,
+                        limit,
+                        offset,
                         commentsPage.getTotalElements(),
                         commentsPage.hasNext()));
     }
 
     @Override
+    public PaginatedResponseDto<CommentResponseDto> getRepliesByComment(
+            String commentId, int limit, int offset, String sortBy, String sortDir) {
+
+        UUID parentCommentId = idEncoder.decode(commentId);
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        // Get replies to this comment
+        Page<Comment> repliesPage = commentRepository.findByParentCommentIdAndStatusNot(
+                parentCommentId, CommentStatus.DELETED, pageable);
+
+        return new PaginatedResponseDto<>(
+                repliesPage.getContent().stream()
+                        .map(this::mapToResponseDto)
+                        .toList(),
+                new PaginatedResponseDto.Pagination(
+                        limit,
+                        offset,
+                        repliesPage.getTotalElements(),
+                        repliesPage.hasNext()));
+    }
+
+    @Override
     @Transactional
-    public CommentResponseDto updateComment(String commentId, CommentRequestDto request) {
+    public CommentResponseDto updateComment(String commentId, CommentUpdateDto request) {
         UUID realCommentId = idEncoder.decode(commentId);
         Comment comment = commentRepository.findById(realCommentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Comment not found"));
 
-        comment.setText(request.getText());
+        if (!comment.getText().equals(request.getText().trim())) {
+            comment.setText(request.getText().trim());
+            comment.setEdited(true); // Mark as edited
+        }
         Comment saved = commentRepository.save(comment);
         return mapToResponseDto(saved);
     }
@@ -110,7 +149,7 @@ public class CommentServiceImpl implements CommentService {
         Comment comment = commentRepository.findById(realCommentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Comment not found"));
 
-        comment.setDeleted(true);
+        comment.setStatus(CommentStatus.DELETED);
         commentRepository.save(comment);
     }
 
@@ -152,7 +191,8 @@ public class CommentServiceImpl implements CommentService {
                 return false;
 
             // Check if channel moderator
-            return channelMembershipRepository.findByChannelIdAndUserId(parentQuestion.getChannel().getId(), currentUserId)
+            return channelMembershipRepository
+                    .findByChannelIdAndUserId(parentQuestion.getChannel().getId(), currentUserId)
                     .map(membership -> membership.getRole() == com.crowdquery.crowdquery.enums.ChannelRole.MODERATOR)
                     .orElse(false);
         } catch (Exception e) {
@@ -163,20 +203,38 @@ public class CommentServiceImpl implements CommentService {
     private CommentResponseDto mapToResponseDto(Comment comment) {
         CommentResponseDto dto = new CommentResponseDto();
         dto.setId(idEncoder.encode(comment.getId()));
-        dto.setText(comment.getText());
+
+        // Show "[deleted]" text for deleted comments
+        if (comment.getStatus() == CommentStatus.DELETED) {
+            dto.setText("[deleted]");
+            dto.setAuthorAnonymousUsername("[deleted user]");
+        } else {
+            dto.setText(comment.getText());
+            dto.setAuthorAnonymousUsername(comment.getAuthor().getAnonymousUsername());
+        }
+
         dto.setParentQuestionId(idEncoder.encode(comment.getParentContentId()));
 
         if (comment.getParentComment() != null) {
             dto.setParentCommentId(idEncoder.encode(comment.getParentComment().getId()));
         }
 
-        dto.setAuthorAnonymousUsername(comment.getAuthor().getAnonymousUsername());
-        dto.setDeleted(comment.isDeleted());
+        // Set comment level using the helper method from Comment entity
+        dto.setCommentLevel(comment.getCommentLevel());
+
+        // Count replies for this comment
+        long replyCount = commentRepository.countByParentCommentIdAndStatusNot(
+                comment.getId(), CommentStatus.DELETED);
+        dto.setReplyCount((int) replyCount);
+
+        dto.setStatus(comment.getStatus());
         dto.setCreatedAt(comment.getCreatedAt());
         dto.setUpdatedAt(comment.getUpdatedAt());
+        dto.setEdited(comment.isEdited());
 
         UUID currentUserId = SecurityUtil.getCurrentUserId().orElse(null);
         dto.setOwner(currentUserId != null && comment.getAuthor().getId().equals(currentUserId));
+        dto.setReactions(reactionService.getReactionSummary(idEncoder.encode(comment.getId()), "COMMENT"));
 
         return dto;
     }

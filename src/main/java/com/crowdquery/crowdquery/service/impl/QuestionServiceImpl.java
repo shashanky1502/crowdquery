@@ -4,10 +4,13 @@ import com.crowdquery.crowdquery.dto.ImageUploadResponseDto;
 import com.crowdquery.crowdquery.dto.PaginatedResponseDto;
 import com.crowdquery.crowdquery.dto.QuestionDto.QuestionRequestDto;
 import com.crowdquery.crowdquery.dto.QuestionDto.QuestionResponseDto;
+import com.crowdquery.crowdquery.enums.CommentStatus;
 import com.crowdquery.crowdquery.enums.QuestionStatus;
+import com.crowdquery.crowdquery.enums.ReactionTargetType;
 import com.crowdquery.crowdquery.model.*;
 import com.crowdquery.crowdquery.repository.*;
 import com.crowdquery.crowdquery.service.QuestionService;
+import com.crowdquery.crowdquery.service.ReactionService;
 import com.crowdquery.crowdquery.util.IdEncoder;
 import com.crowdquery.crowdquery.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +47,7 @@ public class QuestionServiceImpl implements QuestionService {
     private final CommentRepository commentRepository;
     private final RestTemplate restTemplate;
     private final IdEncoder idEncoder;
+    private final ReactionService reactionService;
 
     @Override
     @Transactional
@@ -89,6 +93,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     public PaginatedResponseDto<QuestionResponseDto> getQuestionsByChannel(
+
             String channelCode, int limit, int offset, String sortBy, String sortDir) {
 
         Channel channel = channelRepository.findByChannelCode(channelCode)
@@ -232,9 +237,11 @@ public class QuestionServiceImpl implements QuestionService {
         dto.setAuthorAnonymousUsername(question.getAuthor().getAnonymousUsername());
         dto.setCreatedAt(question.getCreatedAt());
         dto.setUpdatedAt(question.getUpdatedAt());
-        dto.setCommentCount(commentRepository.countByParentContentIdAndIsDeletedFalse(question.getId()));
+        dto.setCommentCount(
+                commentRepository.countByParentContentIdAndStatusNot(question.getId(), CommentStatus.DELETED));
         UUID currentUserId = SecurityUtil.getCurrentUserId().orElse(null);
         dto.setOwner(currentUserId != null && question.getAuthor().getId().equals(currentUserId));
+        dto.setReactions(reactionService.getReactionSummary(idEncoder.encode(question.getId()), "QUESTION"));
 
         return dto;
     }

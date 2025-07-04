@@ -1,5 +1,6 @@
 package com.crowdquery.crowdquery.dto.QuestionDto;
 
+import com.crowdquery.crowdquery.dto.ReactionDto.ReactionSummaryDto;
 import com.crowdquery.crowdquery.enums.QuestionStatus;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -18,4 +19,5 @@ public class QuestionResponseDto {
     private LocalDateTime updatedAt;
     private long commentCount;
     private boolean isOwner; // Can current user edit/delete
+    private ReactionSummaryDto reactions;
 }

@@ -4,5 +4,4 @@ public enum QuestionStatus {
         ACTIVE,
         FLAGGED,
         DELETED,
-        ARCHIVED
 }
