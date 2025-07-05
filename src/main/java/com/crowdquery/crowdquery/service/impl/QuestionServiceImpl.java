@@ -1,53 +1,48 @@
 package com.crowdquery.crowdquery.service.impl;
 
-import com.crowdquery.crowdquery.dto.ImageUploadResponseDto;
 import com.crowdquery.crowdquery.dto.PaginatedResponseDto;
 import com.crowdquery.crowdquery.dto.QuestionDto.QuestionRequestDto;
 import com.crowdquery.crowdquery.dto.QuestionDto.QuestionResponseDto;
 import com.crowdquery.crowdquery.enums.CommentStatus;
 import com.crowdquery.crowdquery.enums.QuestionStatus;
-import com.crowdquery.crowdquery.enums.ReactionTargetType;
 import com.crowdquery.crowdquery.model.*;
 import com.crowdquery.crowdquery.repository.*;
+import com.crowdquery.crowdquery.service.ImageUploadService;
 import com.crowdquery.crowdquery.service.QuestionService;
 import com.crowdquery.crowdquery.service.ReactionService;
 import com.crowdquery.crowdquery.util.IdEncoder;
 import com.crowdquery.crowdquery.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class QuestionServiceImpl implements QuestionService {
 
     private final ModelMapper modelMapper;
     private final QuestionRepository questionRepository;
+    private final QuestionImageRepository questionImageRepository;
     private final UserRepository userRepository;
     private final ChannelRepository channelRepository;
     private final ChannelMembershipRepository channelMembershipRepository;
     private final CommentRepository commentRepository;
-    private final RestTemplate restTemplate;
     private final IdEncoder idEncoder;
     private final ReactionService reactionService;
+    private final ImageUploadService imageUploadService;
 
     @Override
     @Transactional
@@ -65,35 +60,45 @@ public class QuestionServiceImpl implements QuestionService {
             throw new ResponseStatusException(FORBIDDEN, "You are not a member of this channel");
         }
 
-        List<String> imageUrls = new ArrayList<>();
+        // Create question first
+        Question question = Question.builder()
+                .text(request.getText())
+                .channel(channel)
+                .author(author)
+                .build();
 
-        // Upload images if provided
+        Question savedQuestion = questionRepository.save(question);
+
+        // Upload and save images if provided
         if (request.getImages() != null && !request.getImages().isEmpty()) {
-            for (MultipartFile image : request.getImages()) {
+            for (int i = 0; i < request.getImages().size(); i++) {
+                MultipartFile image = request.getImages().get(i);
                 try {
-                    String imageUrl = uploadImage(image);
-                    imageUrls.add(imageUrl);
+                    String imageUrl = imageUploadService.uploadImage(image);
+
+                    QuestionImage questionImage = QuestionImage.builder()
+                            .question(savedQuestion)
+                            .imageUrl(imageUrl)
+                            .originalFilename(image.getOriginalFilename())
+                            .fileSize(image.getSize())
+                            .imageOrder(i + 1)
+                            .build();
+
+                    questionImageRepository.save(questionImage);
+
                 } catch (Exception e) {
+                    log.error("Failed to upload image: {}", e.getMessage());
                     throw new ResponseStatusException(INTERNAL_SERVER_ERROR,
                             "Failed to upload image: " + e.getMessage());
                 }
             }
         }
 
-        Question question = Question.builder()
-                .text(request.getText())
-                .channel(channel)
-                .author(author)
-                .imageUrls(imageUrls)
-                .build();
-
-        Question saved = questionRepository.save(question);
-        return mapToResponseDto(saved);
+        return mapToResponseDto(savedQuestion);
     }
 
     @Override
     public PaginatedResponseDto<QuestionResponseDto> getQuestionsByChannel(
-
             String channelCode, int limit, int offset, String sortBy, String sortDir) {
 
         Channel channel = channelRepository.findByChannelCode(channelCode)
@@ -102,7 +107,6 @@ public class QuestionServiceImpl implements QuestionService {
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
         Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
 
-        // Convert offset and limit to page and size for Spring Data
         int page = offset / limit;
         Pageable pageable = PageRequest.of(page, limit, sort);
 
@@ -144,7 +148,36 @@ public class QuestionServiceImpl implements QuestionService {
         Question question = questionRepository.findById(realQuestionId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Question not found"));
 
+        // Update text
         question.setText(request.getText());
+
+        // Handle image updates if provided
+        if (request.getImages() != null && !request.getImages().isEmpty()) {
+            // Remove existing images
+            questionImageRepository.deleteByQuestionId(realQuestionId);
+
+            // Add new images
+            for (int i = 0; i < request.getImages().size(); i++) {
+                MultipartFile image = request.getImages().get(i);
+                try {
+                    String imageUrl = imageUploadService.uploadImage(image);
+
+                    QuestionImage questionImage = QuestionImage.builder()
+                            .question(question)
+                            .imageUrl(imageUrl)
+                            .originalFilename(image.getOriginalFilename())
+                            .fileSize(image.getSize())
+                            .imageOrder(i + 1)
+                            .build();
+
+                    questionImageRepository.save(questionImage);
+
+                } catch (Exception e) {
+                    throw new ResponseStatusException(INTERNAL_SERVER_ERROR,
+                            "Failed to upload image: " + e.getMessage());
+                }
+            }
+        }
 
         Question saved = questionRepository.save(question);
         return mapToResponseDto(saved);
@@ -161,31 +194,6 @@ public class QuestionServiceImpl implements QuestionService {
         questionRepository.save(question);
     }
 
-    @Override
-    public String uploadImage(MultipartFile image) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("image", image.getResource());
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-            ResponseEntity<ImageUploadResponseDto> response = restTemplate.postForEntity(
-                    "https://uploadimgur.com/api/upload",
-                    requestEntity,
-                    ImageUploadResponseDto.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return response.getBody().getLink();
-            } else {
-                throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Failed to upload image");
-            }
-        } catch (Exception e) {
-            throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Error uploading image: " + e.getMessage());
-        }
-    }
 
     @Override
     public boolean isQuestionOwner(String questionId) {
@@ -237,10 +245,16 @@ public class QuestionServiceImpl implements QuestionService {
         dto.setAuthorAnonymousUsername(question.getAuthor().getAnonymousUsername());
         dto.setCreatedAt(question.getCreatedAt());
         dto.setUpdatedAt(question.getUpdatedAt());
+
+        // Get image URLs from separate table
+        dto.setImageUrls(questionImageRepository.findImageUrlsByQuestionId(question.getId()));
+
         dto.setCommentCount(
                 commentRepository.countByParentContentIdAndStatusNot(question.getId(), CommentStatus.DELETED));
+
         UUID currentUserId = SecurityUtil.getCurrentUserId().orElse(null);
         dto.setOwner(currentUserId != null && question.getAuthor().getId().equals(currentUserId));
+
         dto.setReactions(reactionService.getReactionSummary(idEncoder.encode(question.getId()), "QUESTION"));
 
         return dto;

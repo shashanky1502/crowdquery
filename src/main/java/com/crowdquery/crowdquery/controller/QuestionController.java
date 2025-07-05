@@ -20,18 +20,17 @@ public class QuestionController {
 
     private final QuestionService questionService;
 
-    // Single endpoint - handles both text-only and text+images
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<QuestionResponseDto> createQuestion(
             @RequestParam("text") String text,
             @RequestParam("channelCode") String channelCode,
             @RequestParam(value = "images", required = false) List<MultipartFile> images) {
-        
+
         QuestionRequestDto request = new QuestionRequestDto();
         request.setText(text);
         request.setChannelCode(channelCode);
         request.setImages(images);
-        
+
         return ResponseEntity.ok(questionService.createQuestionWithImages(request));
     }
 

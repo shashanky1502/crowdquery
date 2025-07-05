@@ -32,3 +32,6 @@ app:
     secret: ${JWT_SECRET}
     access-expiration: ${JWT_ACCESS_EXPIRATION:3600000}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+  imgbb:
+    api-key: ${IMGBB_API_KEY}

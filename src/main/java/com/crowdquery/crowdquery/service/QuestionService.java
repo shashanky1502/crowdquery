@@ -23,8 +23,6 @@ public interface QuestionService {
     @PreAuthorize("@questionServiceImpl.isQuestionOwnerOrChannelModerator(#questionId)")
     void deleteQuestion(String questionId);
 
-    String uploadImage(MultipartFile image);
-
     boolean isQuestionOwner(String questionId);
 
     boolean isQuestionOwnerOrChannelModerator(String questionId);
