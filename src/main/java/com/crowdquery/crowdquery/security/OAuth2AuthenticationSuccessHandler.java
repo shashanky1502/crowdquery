@@ -86,6 +86,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
         response.addCookie(accessTokenCookie);
         response.addCookie(refreshTokenCookie);
 
-        response.sendRedirect("http://localhost:8080/dashboard.html");
+        response.sendRedirect("http://crowdquery-production.up.railway.app/dashboard.html");
     }
 }
