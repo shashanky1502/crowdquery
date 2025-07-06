@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -7,13 +8,14 @@
     <title>User Dashboard</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
     <div class="container">
         <h2>Welcome to your Dashboard, <span id="userName">User</span>!</h2>
 
         <img src="" alt="User Avatar" id="userAvatar" class="avatar" />
 
-        
+
         <div class="user-info">
             <h3>Your Details:</h3>
             <p><strong>Email:</strong> <span id="userEmail"></span></p>
@@ -24,20 +26,33 @@
         </div>
     </div>
     <script>
-        // Example: Fetch user info from backend and display
         fetch('/auth/me')
             .then(res => res.json())
             .then(data => {
                 document.getElementById('userName').textContent = data.anonymousUsername || 'User';
                 document.getElementById('userEmail').textContent = data.email || '';
-                document.getElementById('userAvatar').src = data.avatarUrl ;
+                document.getElementById('userAvatar').src = data.avatarUrl;
 
             });
 
-        function logout() {
-            fetch('/auth/logout', { method: 'POST', credentials: 'include' })
-                .then(() => window.location.href = '/login.html');
+        async function logout() {
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login.html';
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/login.html';
+            }
         }
     </script>
 </body>
+
 </html>
