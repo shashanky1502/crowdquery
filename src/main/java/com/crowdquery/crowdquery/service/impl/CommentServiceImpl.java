@@ -128,6 +128,59 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    public PaginatedResponseDto<CommentResponseDto> getMyComments(
+            int limit, int offset, String sortBy, String sortDir) {
+        UUID currentUserId = SecurityUtil.getCurrentUserId()
+                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "User not authenticated"));
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        Page<Comment> commentsPage = commentRepository.findByAuthorIdAndStatusNot(
+                currentUserId, CommentStatus.DELETED, pageable);
+
+        return new PaginatedResponseDto<>(
+                commentsPage.getContent().stream()
+                        .map(this::mapToResponseDto)
+                        .toList(),
+                new PaginatedResponseDto.Pagination(
+                        limit,
+                        offset,
+                        commentsPage.getTotalElements(),
+                        commentsPage.hasNext()));
+    }
+
+    @Override
+    public PaginatedResponseDto<CommentResponseDto> getCommentsByUser(
+            String username, int limit, int offset, String sortBy, String sortDir) {
+
+        User user = userRepository.findByAnonymousUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        Page<Comment> commentsPage = commentRepository.findByAuthorIdAndStatusNot(
+                user.getId(), CommentStatus.DELETED, pageable);
+
+        return new PaginatedResponseDto<>(
+                commentsPage.getContent().stream()
+                        .map(this::mapToResponseDto)
+                        .toList(),
+                new PaginatedResponseDto.Pagination(
+                        limit,
+                        offset,
+                        commentsPage.getTotalElements(),
+                        commentsPage.hasNext()));
+    }
+
+    @Override
     @Transactional
     public CommentResponseDto updateComment(String commentId, CommentUpdateDto request) {
         UUID realCommentId = idEncoder.decode(commentId);

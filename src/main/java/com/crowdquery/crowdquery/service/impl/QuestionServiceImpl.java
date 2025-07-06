@@ -194,6 +194,58 @@ public class QuestionServiceImpl implements QuestionService {
         questionRepository.save(question);
     }
 
+    @Override
+    public PaginatedResponseDto<QuestionResponseDto> getMyQuestions(
+            int limit, int offset, String sortBy, String sortDir) {
+        UUID currentUserId = SecurityUtil.getCurrentUserId()
+                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "User not authenticated"));
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        Page<Question> questionsPage = questionRepository.findByAuthorIdAndStatusNot(
+                currentUserId, QuestionStatus.DELETED, pageable);
+
+        return new PaginatedResponseDto<>(
+                questionsPage.getContent().stream()
+                        .map(this::mapToResponseDto)
+                        .toList(),
+                new PaginatedResponseDto.Pagination(
+                        limit,
+                        offset,
+                        questionsPage.getTotalElements(),
+                        questionsPage.hasNext()));
+    }
+
+    @Override
+    public PaginatedResponseDto<QuestionResponseDto> getQuestionsByUser(
+            String username, int limit, int offset, String sortBy, String sortDir) {
+
+        User user = userRepository.findByAnonymousUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "createdAt");
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
+        Page<Question> questionsPage = questionRepository.findByAuthorIdAndStatusNot(
+                user.getId(), QuestionStatus.DELETED, pageable);
+
+        return new PaginatedResponseDto<>(
+                questionsPage.getContent().stream()
+                        .map(this::mapToResponseDto)
+                        .toList(),
+                new PaginatedResponseDto.Pagination(
+                        limit,
+                        offset,
+                        questionsPage.getTotalElements(),
+                        questionsPage.hasNext()));
+    }
 
     @Override
     public boolean isQuestionOwner(String questionId) {

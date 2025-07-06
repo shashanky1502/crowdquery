@@ -30,8 +30,6 @@ public class User {
 
     private String avatarUrl;
 
-    private LocalDateTime lastUsernameChangeAt;
-
     @Enumerated(EnumType.STRING)
     private Role role;
 

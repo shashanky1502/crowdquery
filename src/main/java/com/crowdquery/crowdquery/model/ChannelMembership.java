@@ -7,6 +7,8 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.CreationTimestamp;
+
 @Entity
 @Table(name = "channel_memberships")
 @Getter
@@ -29,6 +31,6 @@ public class ChannelMembership {
     @Enumerated(EnumType.STRING)
     private ChannelRole role; // MODERATOR / PARTICIPANT
 
+    @CreationTimestamp
     private LocalDateTime joinedAt;
 }
-

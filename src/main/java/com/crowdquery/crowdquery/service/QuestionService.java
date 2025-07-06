@@ -1,7 +1,6 @@
 package com.crowdquery.crowdquery.service;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.crowdquery.crowdquery.dto.PaginatedResponseDto;
 import com.crowdquery.crowdquery.dto.QuestionDto.QuestionRequestDto;
@@ -22,6 +21,12 @@ public interface QuestionService {
 
     @PreAuthorize("@questionServiceImpl.isQuestionOwnerOrChannelModerator(#questionId)")
     void deleteQuestion(String questionId);
+
+    PaginatedResponseDto<QuestionResponseDto> getMyQuestions(
+            int limit, int offset, String sortBy, String sortDir);
+
+    PaginatedResponseDto<QuestionResponseDto> getQuestionsByUser(
+            String username, int limit, int offset, String sortBy, String sortDir);
 
     boolean isQuestionOwner(String questionId);
 

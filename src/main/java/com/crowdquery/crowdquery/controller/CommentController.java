@@ -41,6 +41,26 @@ public class CommentController {
         return ResponseEntity.ok(commentService.getRepliesByComment(commentId, limit, offset, sortBy, sortDir));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<PaginatedResponseDto<CommentResponseDto>> getMyComments(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ResponseEntity.ok(commentService.getMyComments(limit, offset, sortBy, sortDir));
+    }
+
+    // Get comments by specific user
+    @GetMapping("/user/{username}")
+    public ResponseEntity<PaginatedResponseDto<CommentResponseDto>> getCommentsByUser(
+            @PathVariable String username,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ResponseEntity.ok(commentService.getCommentsByUser(username, limit, offset, sortBy, sortDir));
+    }
+
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponseDto> updateComment(
             @PathVariable String commentId,

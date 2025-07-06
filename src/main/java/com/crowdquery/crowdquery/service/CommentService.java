@@ -8,21 +8,26 @@ import com.crowdquery.crowdquery.dto.CommentDto.CommentResponseDto;
 import com.crowdquery.crowdquery.dto.CommentDto.CommentUpdateDto;
 
 public interface CommentService {
-    CommentResponseDto createComment(CommentRequestDto request);
+        CommentResponseDto createComment(CommentRequestDto request);
 
-    PaginatedResponseDto<CommentResponseDto> getCommentsByQuestion(
-            String questionId, int limit, int offset, String sortBy, String sortDir);
+        PaginatedResponseDto<CommentResponseDto> getCommentsByQuestion(
+                        String questionId, int limit, int offset, String sortBy, String sortDir);
 
-    PaginatedResponseDto<CommentResponseDto> getRepliesByComment(
-            String commentId, int limit, int offset, String sortBy, String sortDir);
+        PaginatedResponseDto<CommentResponseDto> getRepliesByComment(
+                        String commentId, int limit, int offset, String sortBy, String sortDir);
 
-    @PreAuthorize("@commentServiceImpl.isCommentOwner(#commentId)")
-    CommentResponseDto updateComment(String commentId, CommentUpdateDto request);
+        PaginatedResponseDto<CommentResponseDto> getMyComments(int limit, int offset, String sortBy, String sortDir);
 
-    @PreAuthorize("@commentServiceImpl.isCommentOwnerOrChannelModerator(#commentId)")
-    void deleteComment(String commentId);
+        PaginatedResponseDto<CommentResponseDto> getCommentsByUser(String username, int limit, int offset,
+                        String sortBy, String sortDir);
 
-    boolean isCommentOwner(String commentId);
+        @PreAuthorize("@commentServiceImpl.isCommentOwner(#commentId)")
+        CommentResponseDto updateComment(String commentId, CommentUpdateDto request);
 
-    boolean isCommentOwnerOrChannelModerator(String commentId);
+        @PreAuthorize("@commentServiceImpl.isCommentOwnerOrChannelModerator(#commentId)")
+        void deleteComment(String commentId);
+
+        boolean isCommentOwner(String commentId);
+
+        boolean isCommentOwnerOrChannelModerator(String commentId);
 }

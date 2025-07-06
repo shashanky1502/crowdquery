@@ -49,6 +49,27 @@ public class QuestionController {
         return ResponseEntity.ok(questionService.getQuestion(questionId));
     }
 
+    // Get my questions
+    @GetMapping("/me")
+    public ResponseEntity<PaginatedResponseDto<QuestionResponseDto>> getMyQuestions(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ResponseEntity.ok(questionService.getMyQuestions(limit, offset, sortBy, sortDir));
+    }
+
+    // Get questions by specific user
+    @GetMapping("/user/{username}")
+    public ResponseEntity<PaginatedResponseDto<QuestionResponseDto>> getQuestionsByUser(
+            @PathVariable String username,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return ResponseEntity.ok(questionService.getQuestionsByUser(username, limit, offset, sortBy, sortDir));
+    }
+
     @PutMapping("/{questionId}")
     public ResponseEntity<QuestionResponseDto> updateQuestion(
             @PathVariable String questionId,
